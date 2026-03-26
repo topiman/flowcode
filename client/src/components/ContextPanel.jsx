@@ -20,7 +20,7 @@ export default function ContextPanel({ workflowId }) {
   useEffect(() => {
     if (!workflowId) return;
     load();
-    const timer = setInterval(load, 15000); // refresh every 15s
+    const timer = setInterval(load, 180000); // refresh every 3min
     return () => clearInterval(timer);
   }, [workflowId]);
 
