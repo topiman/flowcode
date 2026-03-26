@@ -153,11 +153,13 @@ export default function Dashboard() {
   const sendMessage = useCallback(async (text, images) => {
     cancelledRef.current = false;
     setMessages(prev => [...prev, { role: 'user', content: text }]);
-    setIsRunning(true);
-    setStreamBubble({ thinking: '', text: '', tools: [] });
-    setLogEntries([]);
-    setSubagentEntries([]);
-    setCurrentSubagent(null);
+    if (!isRunning) {
+      setIsRunning(true);
+      setStreamBubble({ thinking: '', text: '', tools: [] });
+      setLogEntries([]);
+      setSubagentEntries([]);
+      setCurrentSubagent(null);
+    }
     if (viewingStep) { setViewingStep(null); setHistoricalLog(null); }
 
     await fetch('/api/message', {
@@ -240,6 +242,7 @@ export default function Dashboard() {
 
   // Cancel
   const cancel = useCallback(async () => {
+    if (!confirm('确认取消当前正在执行的任务？')) return;
     cancelledRef.current = true;
     await fetch(`/api/workflows/${id}/cancel`, { method: 'POST' });
     setIsRunning(false);

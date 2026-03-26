@@ -25,7 +25,6 @@ const router = Router();
 router.post('/', async (req, res) => {
   const { workflowId, message, images } = req.body;
   if (!workflowId || !message) return res.status(400).json({ error: 'missing params' });
-  if (isRunning(workflowId)) return res.status(409).json({ error: '正在执行中' });
 
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(workflowId);
   if (!wf) return res.status(404).json({ error: 'workflow not found' });
