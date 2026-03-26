@@ -126,6 +126,9 @@ router.post('/:id/prev', (req, res) => {
 
   const prevStep = flatSteps[currentIdx - 1];
 
+  // Kill current process to avoid session conflict when resuming previous step
+  killProcess(wfId);
+
   // Reset current step to pending
   db.prepare("UPDATE workflow_steps SET status = 'pending', session_id = NULL WHERE workflow_id = ? AND step_name = ?")
     .run(wfId, wf.current_step);

@@ -216,6 +216,11 @@ export function getOrCreateProcess(key, options = {}) {
       console.log(`[pool] model changed for [${key}]: ${existing.model} → ${model}, killing`);
       existing.proc.kill('SIGTERM');
       pool.delete(key);
+    // If sessionId changed, kill old process and create new one (e.g. after rollback)
+    } else if (sessionId && existing.sessionId !== sessionId) {
+      console.log(`[pool] session changed for [${key}]: ${existing.sessionId?.slice(0, 8)} → ${sessionId?.slice(0, 8)}, killing`);
+      existing.proc.kill('SIGTERM');
+      pool.delete(key);
     } else {
       return existing;
     }
@@ -298,7 +303,8 @@ export function getSessionId(key) {
 export function cancelRun(key) {
   const pp = pool.get(key);
   if (pp) {
-    pp.kill();
+    // Use SIGKILL for immediate termination (user explicitly cancelled)
+    if (pp.state !== 'dead') pp.proc.kill('SIGKILL');
     pool.delete(key);
   }
 }

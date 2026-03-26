@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [streamBubble, setStreamBubble] = useState(null);
   const [sessionStats, setSessionStats] = useState(null); // { costUsd, durationMs, usage, modelUsage }
   const [sessionInit, setSessionInit] = useState(null);   // { model, sessionId, version }
+  const cancelledRef = useRef(false);
   const splitRef = useRef(null);
 
   // Load workflow data + check if running
@@ -61,6 +62,7 @@ export default function Dashboard() {
       }
     },
     onThinking: (d) => {
+      if (cancelledRef.current) return;
       const entry = { type: 'thinking', text: d.text };
       if (d.subagent) {
         setSubagentEntries(prev => [...prev, entry]);
@@ -70,6 +72,7 @@ export default function Dashboard() {
       setStreamBubble(prev => prev ? { ...prev, thinking: (prev.thinking || '') + d.text } : { thinking: d.text, text: '', tools: [] });
     },
     onText: (d) => {
+      if (cancelledRef.current) return;
       const entry = { type: 'text', text: d.text };
       if (d.subagent) {
         setSubagentEntries(prev => [...prev, entry]);
@@ -79,6 +82,7 @@ export default function Dashboard() {
       setStreamBubble(prev => prev ? { ...prev, text: (prev.text || '') + d.text } : { thinking: '', text: d.text, tools: [] });
     },
     onTool: (d) => {
+      if (cancelledRef.current) return;
       const entry = { type: 'tool', tool: d.tool, input: d.input || '', text: `[${d.tool}] ${d.input || ''}\n` };
       if (d.subagent) {
         setSubagentEntries(prev => [...prev, entry]);
@@ -144,6 +148,7 @@ export default function Dashboard() {
 
   // Send message
   const sendMessage = useCallback(async (text, images) => {
+    cancelledRef.current = false;
     setMessages(prev => [...prev, { role: 'user', content: text }]);
     setIsRunning(true);
     setStreamBubble({ thinking: '', text: '', tools: [] });
@@ -189,6 +194,7 @@ export default function Dashboard() {
           setWorkflow(prev => prev ? { ...prev, status: 'completed' } : prev);
           setMessages(prev => [...prev, { role: 'system', content: '工作流已全部完成' }]);
         } else {
+          cancelledRef.current = false;
           setIsRunning(true);
           setLogEntries([]);
           setSubagentEntries([]);
@@ -231,6 +237,7 @@ export default function Dashboard() {
 
   // Cancel
   const cancel = useCallback(async () => {
+    cancelledRef.current = true;
     await fetch(`/api/workflows/${id}/cancel`, { method: 'POST' });
     setIsRunning(false);
     setStreamBubble(null);
