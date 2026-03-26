@@ -227,6 +227,7 @@ export default function Dashboard() {
       confirmColor: 'bg-gray-600 hover:bg-gray-700',
       onConfirm: async () => {
         setSimpleConfirm(null);
+        cancelledRef.current = true;
         const res = await fetch(`/api/workflows/${id}/prev`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) {

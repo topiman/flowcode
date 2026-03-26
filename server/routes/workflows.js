@@ -133,8 +133,9 @@ router.post('/:id/prev', (req, res) => {
 
   const prevStep = flatSteps[currentIdx - 1];
 
-  // Force kill current process to stop execution immediately
+  // Force kill current process and disable auto-mode
   cancelRun(wfId);
+  db.prepare("UPDATE workflows SET auto_mode = 0, updated_at = datetime('now') WHERE id = ?").run(wfId);
 
   // Reset current step to pending
   db.prepare("UPDATE workflow_steps SET status = 'pending', session_id = NULL WHERE workflow_id = ? AND step_name = ?")
@@ -176,7 +177,15 @@ router.post('/:id/auto-mode', (req, res) => {
 
 // Cancel
 router.post('/:id/cancel', (req, res) => {
-  cancelRun(parseInt(req.params.id));
+  const wfId = parseInt(req.params.id);
+  cancelRun(wfId);
+  // Clear session and disable auto-mode to fully cut off the old process
+  const wf = db.prepare('SELECT current_step FROM workflows WHERE id = ?').get(wfId);
+  if (wf?.current_step) {
+    db.prepare("UPDATE workflow_steps SET session_id = NULL WHERE workflow_id = ? AND step_name = ?").run(wfId, wf.current_step);
+  }
+  db.prepare("UPDATE workflows SET auto_mode = 0, session_id = NULL, updated_at = datetime('now') WHERE id = ?").run(wfId);
+  console.log(`[cancel] wf=${wfId} cleared session and auto-mode`);
   res.json({ ok: true });
 });
 

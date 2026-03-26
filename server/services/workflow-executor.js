@@ -38,6 +38,13 @@ export async function executeStep(workflowId, userMessage = '开始执行') {
   // Whitelist: only allow tools the agent needs (no Agent/SendMessage/ToolSearch)
   const allowedTools = ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'];
 
+  // Verify step is still current before sending (cancel/rollback may have changed it)
+  const wfCheck1 = db.prepare('SELECT current_step FROM workflows WHERE id = ?').get(workflowId);
+  if (wfCheck1.current_step !== step.step_name) {
+    console.log(`[executeStep] aborted before send: current_step changed from ${step.step_name} to ${wfCheck1.current_step}`);
+    return { code: -1, output: '', sessionId: null };
+  }
+
   let result;
   if (step.session_id) {
     // Resume: persistent process or new process with --resume
@@ -83,6 +90,13 @@ export async function executeStep(workflowId, userMessage = '开始执行') {
   }
 
   console.log(`[executeStep] done: code=${result.code} session=${result.sessionId?.slice(0, 8) || 'none'} output=${result.output?.length || 0} chars`);
+
+  // Verify step is still current after execution (cancel/rollback may have happened during)
+  const wfCheck2 = db.prepare('SELECT current_step FROM workflows WHERE id = ?').get(workflowId);
+  if (wfCheck2.current_step !== step.step_name) {
+    console.log(`[executeStep] aborted after send: current_step changed from ${step.step_name} to ${wfCheck2.current_step}, skipping save`);
+    return { code: -1, output: '', sessionId: null };
+  }
 
   // Save step session_id
   if (result.sessionId) {
