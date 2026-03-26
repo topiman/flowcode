@@ -15,7 +15,6 @@ export default function Dashboard() {
   const [subagentEntries, setSubagentEntries] = useState([]);
   const [currentSubagent, setCurrentSubagent] = useState(null); // { description }
   const [historicalLog, setHistoricalLog] = useState(null);
-  const [viewingStep, setViewingStep] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
   const [streamBubble, setStreamBubble] = useState(null);
@@ -33,6 +32,12 @@ export default function Dashboard() {
       if (data.isRunning) {
         setIsRunning(true);
         setStreamBubble({ thinking: '', text: '', tools: [] });
+      }
+      // Load current step's historical log
+      if (data.current_step) {
+        fetch(`/api/workflows/${id}/steps/${data.current_step}/log`).then(r => r.json()).then(d => {
+          setHistoricalLog(d.log || null);
+        }).catch(() => {});
       }
     });
     fetch(`/api/workflows/${id}/chat`).then(r => r.json()).then(setMessages);
@@ -53,6 +58,14 @@ export default function Dashboard() {
         if (state.currentStep !== undefined) updates.current_step = state.currentStep;
         return { ...prev, ...updates };
       });
+      // When step changes, load its historical log and clear live entries
+      if (state.currentStep) {
+        fetch(`/api/workflows/${id}/steps/${state.currentStep}/log`).then(r => r.json()).then(d => {
+          setHistoricalLog(d.log || null);
+          setLogEntries([]);
+          setSubagentEntries([]);
+        }).catch(() => {});
+      }
       // Update steps from state
       if (state.steps) {
         setSteps(prev => prev.map(s => {
@@ -160,14 +173,12 @@ export default function Dashboard() {
       setSubagentEntries([]);
       setCurrentSubagent(null);
     }
-    if (viewingStep) { setViewingStep(null); setHistoricalLog(null); }
-
     await fetch('/api/message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ workflowId: parseInt(id), message: text, images }),
     });
-  }, [id, viewingStep]);
+  }, [id]);
 
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState(null);
@@ -248,13 +259,6 @@ export default function Dashboard() {
   }, [id]);
 
   // View step log
-  const viewStepLog = useCallback(async (stepName) => {
-    setViewingStep(stepName);
-    const res = await fetch(`/api/workflows/${id}/steps/${stepName}/log`);
-    const data = await res.json();
-    setHistoricalLog(data.log || '暂无日志记录');
-  }, [id]);
-
   // Cancel
   const cancel = useCallback(() => {
     setSimpleConfirm({
@@ -343,19 +347,14 @@ export default function Dashboard() {
 
       {/* Body */}
       <div className="flex flex-1 min-h-0">
-        <Sidebar workflow={workflow} steps={steps} onStepClick={viewStepLog} viewingStep={viewingStep} />
+        <Sidebar workflow={workflow} steps={steps} />
 
         <div className="flex-1 flex flex-col min-h-0">
           <div ref={splitRef} className="flex-1 flex flex-col min-h-0">
             {/* Log pane */}
             <div data-log style={{ height: '50%' }} className="min-h-[60px] overflow-hidden flex flex-col">
               <div className="px-4 py-1.5 text-[11px] border-b border-gray-800 shrink-0 flex items-center gap-2">
-                {viewingStep ? (
-                  <>
-                    <span className="text-gray-500">日志: {viewingStep}</span>
-                    <button onClick={() => { setViewingStep(null); setHistoricalLog(null); }} className="text-gray-600 hover:text-gray-400">✕ 返回实时</button>
-                  </>
-                ) : currentSubagent ? (
+                {currentSubagent ? (
                   <>
                     <span className="text-purple-400 font-medium">{currentSubagent.description}</span>
                     {currentSubagent.model && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-500">{currentSubagent.model}</span>}
@@ -364,15 +363,13 @@ export default function Dashboard() {
                 ) : (
                   <>
                     <span className="text-gray-500">执行日志</span>
-                    {isRunning && logEntries.length > 0 && (
-                      <span className="text-purple-500/60 text-[10px]">● LIVE</span>
-                    )}
+                    {isRunning && <span className="text-purple-500/60 text-[10px]">● LIVE</span>}
                   </>
                 )}
               </div>
               <LogViewer
                 entries={currentSubagent ? subagentEntries : logEntries}
-                historicalLog={viewingStep ? historicalLog : null}
+                historicalLog={historicalLog}
               />
             </div>
 

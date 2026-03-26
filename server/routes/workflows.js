@@ -102,6 +102,7 @@ router.get('/:id/check-outputs', (req, res) => {
   const wfId = parseInt(req.params.id);
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(wfId);
   if (!wf) return res.status(404).json({ error: 'not found' });
+  console.log(`[check-outputs] wf=${wfId} step=${wf.current_step}`);
 
   const agent = db.prepare('SELECT label, outputs FROM agents WHERE name = ?').get(wf.current_step);
   const project = db.prepare('SELECT name FROM projects WHERE id = ?').get(wf.project_id);
@@ -165,6 +166,7 @@ router.post('/:id/prev', (req, res) => {
 router.post('/:id/auto-mode', (req, res) => {
   const { enabled } = req.body;
   const wfId = parseInt(req.params.id);
+  console.log(`[auto-mode] wf=${wfId} enabled=${enabled}`);
   db.prepare(`UPDATE workflows SET auto_mode = ?, updated_at = datetime('now') WHERE id = ?`).run(enabled ? 1 : 0, wfId);
   res.json({ ok: true, enabled: !!enabled });
 
@@ -192,6 +194,7 @@ router.post('/:id/cancel', (req, res) => {
 // Reset session
 router.post('/:id/reset-session', (req, res) => {
   const wfId = parseInt(req.params.id);
+  console.log(`[reset-session] wf=${wfId}`);
   killProcess(wfId);
   db.prepare(`UPDATE workflows SET session_id = NULL, updated_at = datetime('now') WHERE id = ?`).run(wfId);
   res.json({ ok: true });

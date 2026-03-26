@@ -148,14 +148,14 @@ export default function LogViewer({ entries, historicalLog }) {
     if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
   }, [entries, historicalLog]);
 
-  const displayEntries = historicalLog !== null
-    ? parseHistoricalLog(historicalLog)
-    : mergeEntries(entries);
+  const historicalEntries = historicalLog ? parseHistoricalLog(historicalLog) : [];
+  const liveEntries = mergeEntries(entries);
+  const displayEntries = [...historicalEntries, ...liveEntries];
 
   if (displayEntries.length === 0) {
     return (
       <div ref={ref} className="flex-1 overflow-y-auto p-4 bg-gray-950 flex items-center justify-center">
-        <span className="text-gray-600 text-sm">{historicalLog !== null ? '暂无日志记录' : '点击「下一步」或开启「全自动」开始执行工作流'}</span>
+        <span className="text-gray-600 text-sm">点击「下一步」或开启「全自动」开始执行工作流</span>
       </div>
     );
   }

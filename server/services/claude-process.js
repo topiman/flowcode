@@ -62,6 +62,7 @@ class PersistentProcess {
           const evt = JSON.parse(line);
           this._handleEvent(evt);
         } catch {
+          console.log(`[claude] [${this.key}] non-json: ${line.slice(0, 100)}`);
           broadcast(this.broadcastKey, 'log', { text: line + '\n' });
         }
       }
@@ -99,7 +100,7 @@ class PersistentProcess {
     });
 
     this.proc.on('error', err => {
-      console.error(`[pool] process error [${this.key}]:`, err.message);
+      console.error(`[pool] process error [${this.key}] pid=${this.proc.pid}:`, err.message);
       this.state = 'dead';
       pool.delete(this.key);
 

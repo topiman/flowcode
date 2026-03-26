@@ -38,6 +38,7 @@ router.post('/', (req, res) => {
 
   const r = db.prepare('INSERT INTO conversations (name, project_id) VALUES (?, ?)')
     .run(convName, projectId || null);
+  console.log(`[conversation] created conv=${r.lastInsertRowid} name=${convName} projectId=${projectId || 'none'}`);
   res.json({ id: r.lastInsertRowid });
 
   // Auto-start: trigger AI to begin asking questions
@@ -51,6 +52,7 @@ router.post('/:id/message', (req, res) => {
   const { message, images } = req.body;
   const convId = parseInt(req.params.id);
   if (!message) return res.status(400).json({ error: 'missing message' });
+  console.log(`[conversation] POST conv=${convId} msg=${message.slice(0, 60)} running=${isRunning(`conv:${convId}`)}`);
   if (isRunning(`conv:${convId}`)) return res.status(409).json({ error: '正在执行中' });
 
   // Save images and files, prepend references
@@ -124,6 +126,7 @@ router.put('/:id', (req, res) => {
 
 // Delete conversation
 router.delete('/:id', (req, res) => {
+  console.log(`[conversation] delete conv=${req.params.id}`);
   db.prepare('DELETE FROM chat_messages WHERE conversation_id = ?').run(req.params.id);
   db.prepare('DELETE FROM conversations WHERE id = ?').run(req.params.id);
   res.json({ ok: true });

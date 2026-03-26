@@ -140,11 +140,15 @@ export function advanceStep(workflowId) {
 // Auto mode: independent background loop
 export async function runAutoMode(workflowId) {
   if (autoModeRunning.has(workflowId)) return;
+  console.log(`[autoMode] starting for wf=${workflowId}`);
   autoModeRunning.add(workflowId);
   try {
   while (true) {
     const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(workflowId);
-    if (!wf || wf.status !== 'in-progress' || !wf.auto_mode) break;
+    if (!wf || wf.status !== 'in-progress' || !wf.auto_mode) {
+      console.log(`[autoMode] wf=${workflowId} stopping: status=${wf?.status} auto_mode=${wf?.auto_mode}`);
+      break;
+    }
 
     const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(wf.project_id);
     const cwd = wf.worktree_dir || join(PROJECTS_DIR, project.name);
@@ -152,17 +156,22 @@ export async function runAutoMode(workflowId) {
       .get(workflowId, wf.current_step);
     const agent = db.prepare('SELECT * FROM agents WHERE name = ?').get(step.step_name);
 
+    console.log(`[autoMode] wf=${workflowId} step=${step.step_name} status=${step.status} agent=${agent?.name}`);
+
     // Skip interactive agents — pause and wait for user
     if (agent?.interactive) {
+      console.log(`[autoMode] paused: interactive agent ${step.step_name}`);
       broadcast(workflowId, 'auto-pause', { reason: '需要用户操作', step: step.step_name });
       break;
     }
 
     // Execute if not yet started
     if (step.status === 'pending') {
+      console.log(`[autoMode] executing ${step.step_name}`);
       const result = await executeStep(workflowId, '开始执行');
 
       if (result.code !== 0) {
+        console.log(`[autoMode] paused: execution failed for ${step.step_name} code=${result.code}`);
         broadcast(workflowId, 'auto-pause', { reason: '执行失败', step: step.step_name });
         break;
       }
@@ -171,29 +180,35 @@ export async function runAutoMode(workflowId) {
       const outputs = JSON.parse(agent.outputs || '[]');
       const missing = outputs.filter(f => !existsSync(join(cwd, f)));
       if (missing.length > 0) {
+        console.log(`[autoMode] paused: missing outputs for ${step.step_name}: ${missing.join(', ')}`);
         broadcast(workflowId, 'auto-pause', { reason: '输出文件缺失: ' + missing.join(', '), step: step.step_name });
         break;
       }
     }
 
     // Mark completed + advance
+    console.log(`[autoMode] completed ${step.step_name}, advancing`);
     db.prepare("UPDATE workflow_steps SET status = 'completed', completed_at = datetime('now') WHERE id = ?").run(step.id);
     broadcast(workflowId, 'state', { steps: { [step.step_name]: { status: 'completed' } } });
 
     const nextStep = advanceStep(workflowId);
-    if (!nextStep) break;
+    if (!nextStep) { console.log(`[autoMode] wf=${workflowId} all steps done`); break; }
 
+    console.log(`[autoMode] wf=${workflowId} → ${nextStep}`);
     broadcast(workflowId, 'auto-continue', { nextStep });
   }
   } finally {
+    console.log(`[autoMode] wf=${workflowId} exited loop`);
     autoModeRunning.delete(workflowId);
   }
 }
 
 // Re-execute current step with user feedback
 export async function retryStep(workflowId, feedback) {
+  console.log(`[retryStep] wf=${workflowId} feedback=${feedback.slice(0, 60)}`);
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(workflowId);
   const step = db.prepare('SELECT * FROM workflow_steps WHERE workflow_id = ? AND step_name = ?').get(workflowId, wf.current_step);
+  console.log(`[retryStep] step=${step.step_name} retries=${step.retries}`);
 
   // Reset step status
   db.prepare("UPDATE workflow_steps SET status = 'in-progress' WHERE id = ?").run(step.id);
@@ -203,11 +218,13 @@ export async function retryStep(workflowId, feedback) {
 
 // ─── Send message to Claude main session (workflow completed, direct chat) ───
 export async function sendMessage_workflow(workflowId, message) {
+  console.log(`[sendMessage_wf] wf=${workflowId} msg=${message.slice(0, 60)}`);
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(workflowId);
   if (!wf) throw new Error('Workflow not found');
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(wf.project_id);
   const projectDir = wf.worktree_dir || join(PROJECTS_DIR, project.name);
+  console.log(`[sendMessage_wf] project=${project.name} session=${wf.session_id?.slice(0, 8) || 'none'}`);
 
   // Save user message
   const convId = wf.conversation_id;

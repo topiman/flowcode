@@ -6,8 +6,10 @@ import { sendMessage, killProcess } from './claude-process.js';
 
 // ─── Send message in conversation (pre-project, requirement gathering) ───
 export async function sendConversationMessage(convId, message, displayMessage) {
+  console.log(`[conversation] conv=${convId} msg=${message.slice(0, 60)}`);
   const conv = db.prepare('SELECT * FROM conversations WHERE id = ?').get(convId);
   if (!conv) throw new Error('Conversation not found');
+  console.log(`[conversation] status=${conv.status} session=${conv.session_id?.slice(0, 8) || 'none'} project_id=${conv.project_id || 'none'}`);
 
   const broadcastKey = `conv:${convId}`;
 
@@ -48,6 +50,7 @@ export async function sendConversationMessage(convId, message, displayMessage) {
   let result;
   if (conv.session_id) {
     // Resume: persistent process may still be alive, or will be recreated with --resume
+    console.log(`[conversation] resuming session ${conv.session_id.slice(0, 8)}`);
     try {
       result = await sendMessage(broadcastKey, message, {
         cwd,
@@ -78,7 +81,7 @@ export async function sendConversationMessage(convId, message, displayMessage) {
     }
   } else {
     // First message: put instructions in the message itself (not --system-prompt)
-    // This ensures instructions persist in conversation context on resume
+    console.log(`[conversation] new session for conv ${convId}`);
     const firstMessage = `${systemPrompt}\n\n用户说：${message}`;
     result = await sendMessage(broadcastKey, firstMessage, {
       cwd,
@@ -86,6 +89,8 @@ export async function sendConversationMessage(convId, message, displayMessage) {
       disallowedTools: blockedTools,
     });
   }
+
+  console.log(`[conversation] done: session=${result.sessionId?.slice(0, 8) || 'none'} output=${result.output?.length || 0} chars`);
 
   // Save session ID
   if (result.sessionId) {
