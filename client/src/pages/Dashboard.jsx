@@ -171,6 +171,8 @@ export default function Dashboard() {
 
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState(null);
+  // Generic confirm dialog: { title, message, confirmLabel, confirmColor, onConfirm }
+  const [simpleConfirm, setSimpleConfirm] = useState(null);
 
   // Next step (with confirmation)
   const handleNext = useCallback(async () => {
@@ -212,24 +214,31 @@ export default function Dashboard() {
   }, [id]);
 
   // Go back to previous step (with confirmation)
-  const handlePrev = useCallback(async () => {
-    if (!confirm('确认回退到上一步？当前步骤将被重置。')) return;
-    const res = await fetch(`/api/workflows/${id}/prev`, { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) {
-      setMessages(prev => [...prev, { role: 'system', content: data.error || '无法回退' }]);
-      return;
-    }
-    setMessages(prev => [...prev, { role: 'system', content: `已回退到: ${data.prevStep}` }]);
-    setIsRunning(false);
-    setLogEntries([]);
-    setSubagentEntries([]);
-    setCurrentSubagent(null);
-    // Reload workflow to sync UI
-    const wfRes = await fetch(`/api/workflows/${id}`);
-    const wfData = await wfRes.json();
-    setWorkflow(wfData);
-    setSteps(wfData.steps || []);
+  const handlePrev = useCallback(() => {
+    setSimpleConfirm({
+      title: '回退到上一步',
+      message: '当前步骤将被重置为等待状态，上一步可恢复对话。',
+      confirmLabel: '确认回退',
+      confirmColor: 'bg-gray-600 hover:bg-gray-700',
+      onConfirm: async () => {
+        setSimpleConfirm(null);
+        const res = await fetch(`/api/workflows/${id}/prev`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) {
+          setMessages(prev => [...prev, { role: 'system', content: data.error || '无法回退' }]);
+          return;
+        }
+        setMessages(prev => [...prev, { role: 'system', content: `已回退到: ${data.prevStep}` }]);
+        setIsRunning(false);
+        setLogEntries([]);
+        setSubagentEntries([]);
+        setCurrentSubagent(null);
+        const wfRes = await fetch(`/api/workflows/${id}`);
+        const wfData = await wfRes.json();
+        setWorkflow(wfData);
+        setSteps(wfData.steps || []);
+      },
+    });
   }, [id]);
 
   // View step log
@@ -241,12 +250,20 @@ export default function Dashboard() {
   }, [id]);
 
   // Cancel
-  const cancel = useCallback(async () => {
-    if (!confirm('确认取消当前正在执行的任务？')) return;
-    cancelledRef.current = true;
-    await fetch(`/api/workflows/${id}/cancel`, { method: 'POST' });
-    setIsRunning(false);
-    setStreamBubble(null);
+  const cancel = useCallback(() => {
+    setSimpleConfirm({
+      title: '取消当前任务',
+      message: '将强制终止正在执行的 AI 任务，已完成的部分不受影响。',
+      confirmLabel: '确认取消',
+      confirmColor: 'bg-red-600 hover:bg-red-700',
+      onConfirm: async () => {
+        setSimpleConfirm(null);
+        cancelledRef.current = true;
+        await fetch(`/api/workflows/${id}/cancel`, { method: 'POST' });
+        setIsRunning(false);
+        setStreamBubble(null);
+      },
+    });
   }, [id]);
 
   // Toggle auto mode
@@ -261,10 +278,18 @@ export default function Dashboard() {
   }, [id, autoMode]);
 
   // Reset session
-  const resetSession = useCallback(async () => {
-    if (!confirm('重置 session？工作流状态不受影响。')) return;
-    await fetch(`/api/workflows/${id}/reset-session`, { method: 'POST' });
-    setMessages(prev => [...prev, { role: 'system', content: 'Session 已重置' }]);
+  const resetSession = useCallback(() => {
+    setSimpleConfirm({
+      title: '重置 Session',
+      message: '将清除当前会话，工作流状态不受影响。下次发消息将开始新会话。',
+      confirmLabel: '确认重置',
+      confirmColor: 'bg-amber-600 hover:bg-amber-700',
+      onConfirm: async () => {
+        setSimpleConfirm(null);
+        await fetch(`/api/workflows/${id}/reset-session`, { method: 'POST' });
+        setMessages(prev => [...prev, { role: 'system', content: 'Session 已重置' }]);
+      },
+    });
   }, [id]);
 
   // Drag to resize
@@ -392,6 +417,22 @@ export default function Dashboard() {
               <button onClick={confirmDialog.onCancel} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition">取消</button>
               <button onClick={confirmDialog.onConfirm} className={`px-4 py-2 text-sm font-semibold rounded-lg transition ${confirmDialog.hasMissing ? 'bg-amber-600 hover:bg-amber-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>
                 确认推进
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generic confirm dialog */}
+      {simpleConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setSimpleConfirm(null)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">{simpleConfirm.title}</h3>
+            <p className="text-sm text-gray-400 mb-5">{simpleConfirm.message}</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setSimpleConfirm(null)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition">取消</button>
+              <button onClick={simpleConfirm.onConfirm} className={`px-4 py-2 text-sm font-semibold rounded-lg transition ${simpleConfirm.confirmColor || 'bg-purple-600 hover:bg-purple-700'} text-white`}>
+                {simpleConfirm.confirmLabel || '确认'}
               </button>
             </div>
           </div>
