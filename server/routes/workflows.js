@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { join } from 'path';
-import { existsSync } from 'fs';
 import { PROJECTS_DIR } from '../config.js';
 import db from '../db.js';
 import { cancelRun, killProcess, executeStep, advanceStep, isRunning, runAutoMode, sendCommand, isAlive, getProcessInfo } from '../services/claude.js';
@@ -69,23 +68,12 @@ router.post('/:id/next', async (req, res) => {
     return;
   }
 
-  // If still in progress, block advancement
+  // Only allow advancing if step is done (agent finished) or already completed
   if (currentStep.status === 'in-progress') {
-    return res.status(409).json({ error: '当前步骤尚未完成，请等待执行结束' });
+    return res.status(409).json({ error: '当前步骤正在执行中，请等待完成' });
   }
-
-  // Check output files exist before advancing
-  const agent = db.prepare('SELECT outputs FROM agents WHERE name = ?').get(wf.current_step);
-  if (agent) {
-    const outputs = JSON.parse(agent.outputs || '[]');
-    if (outputs.length > 0) {
-      const project = db.prepare('SELECT name FROM projects WHERE id = ?').get(wf.project_id);
-      const cwd = wf.worktree_dir || join(PROJECTS_DIR, project.name);
-      const missing = outputs.filter(f => !existsSync(join(cwd, f)));
-      if (missing.length > 0) {
-        return res.status(400).json({ error: '输出文件缺失: ' + missing.join(', ') });
-      }
-    }
+  if (currentStep.status !== 'done' && currentStep.status !== 'completed') {
+    return res.status(409).json({ error: `当前步骤状态为 ${currentStep.status}，无法推进` });
   }
 
   // Mark current step completed
