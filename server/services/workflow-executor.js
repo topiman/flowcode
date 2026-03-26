@@ -62,6 +62,7 @@ export async function executeStep(workflowId, userMessage = '开始执行') {
         cwd,
         broadcastKey: workflowId,
         allowedTools,
+        model: agent.model || undefined,
       });
     }
   } else {
@@ -73,6 +74,7 @@ export async function executeStep(workflowId, userMessage = '开始执行') {
       cwd,
       broadcastKey: workflowId,
       allowedTools,
+      model: agent.model || undefined,
     });
   }
 

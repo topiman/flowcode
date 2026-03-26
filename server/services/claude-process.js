@@ -206,7 +206,7 @@ class PersistentProcess {
  * If a process exists but options differ (e.g. different allowedTools), kill it and create new.
  */
 export function getOrCreateProcess(key, options = {}) {
-  const { cwd, sessionId, broadcastKey, disallowedTools, allowedTools, systemPrompt, agentMode } = options;
+  const { cwd, sessionId, broadcastKey, disallowedTools, allowedTools, systemPrompt, agentMode, model } = options;
   const bKey = broadcastKey || key;
 
   const existing = pool.get(key);
@@ -221,6 +221,7 @@ export function getOrCreateProcess(key, options = {}) {
 
   // Spawn new persistent process
   const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--dangerously-skip-permissions', '--include-partial-messages'];
+  if (model) args.push('--model', model);
   if (sessionId) args.push('--resume', sessionId);
   if (systemPrompt) args.push('--system-prompt', systemPrompt);
   if (agentMode) args.push('--append-system-prompt', '重要：忽略项目目录下的 CLAUDE.md 和 workflow.md 文件，只遵循 system prompt 中的指令。');
