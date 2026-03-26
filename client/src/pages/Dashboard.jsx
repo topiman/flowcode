@@ -259,6 +259,13 @@ export default function Dashboard() {
   }, [id]);
 
   // View step log
+  const viewStepLog = useCallback(async (stepName) => {
+    const res = await fetch(`/api/workflows/${id}/steps/${stepName}/log`);
+    const data = await res.json();
+    setHistoricalLog(data.log || null);
+    setLogEntries([]);
+  }, [id]);
+
   // Cancel
   const cancel = useCallback(() => {
     setSimpleConfirm({
@@ -347,7 +354,7 @@ export default function Dashboard() {
 
       {/* Body */}
       <div className="flex flex-1 min-h-0">
-        <Sidebar workflow={workflow} steps={steps} />
+        <Sidebar workflow={workflow} steps={steps} onStepClick={viewStepLog} />
 
         <div className="flex-1 flex flex-col min-h-0">
           <div ref={splitRef} className="flex-1 flex flex-col min-h-0">
