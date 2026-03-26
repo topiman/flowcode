@@ -56,14 +56,21 @@ router.post('/:id/next', async (req, res) => {
   if (!wf) return res.status(404).json({ error: 'not found' });
   if (isRunning(wfId)) return res.status(409).json({ error: '正在执行中' });
 
-  // If current step is still pending, execute it first instead of advancing
+  // Check current step status
   const currentStep = db.prepare('SELECT status FROM workflow_steps WHERE workflow_id = ? AND step_name = ?').get(wfId, wf.current_step);
+
+  // If pending, execute it first
   if (!currentStep || currentStep.status === 'pending') {
     res.json({ ok: true, executing: wf.current_step });
     executeStep(wfId, '开始执行').catch(err => {
       console.error(`[next] auto-execute failed:`, err.message);
     });
     return;
+  }
+
+  // If still in progress, block advancement
+  if (currentStep.status === 'in-progress') {
+    return res.status(409).json({ error: '当前步骤尚未完成，请等待执行结束' });
   }
 
   // Mark current step completed
