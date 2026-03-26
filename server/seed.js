@@ -29,16 +29,16 @@ console.log(`Seeded ${AGENTS.length} agents`);
 
 // ─── Workflow Templates ───
 const TEMPLATES = [
-  { name: '全新项目', steps: ['agent-01-requirement','agent-02-brd','agent-03-prd','agent-04-tech-design','commit-docs','agent-05-tdd','agent-06-code-review','agent-07-e2e-test','agent-08-deploy'] },
-  { name: '新功能', steps: ['agent-01-requirement','agent-03-prd','agent-04-tech-design','commit-docs','agent-05-tdd','agent-06-code-review','agent-07-e2e-test','agent-08-deploy'] },
-  { name: 'Bug 修复', steps: ['agent-01-requirement','agent-05-tdd','agent-06-code-review','agent-07-e2e-test','agent-08-deploy'] },
-  { name: '热修复', steps: ['agent-01-requirement','agent-05-tdd','agent-06-code-review','agent-07-e2e-test','agent-08-deploy'] },
-  { name: '重构', steps: ['agent-01-requirement','agent-04-tech-design','commit-docs','agent-05-tdd','agent-06-code-review','agent-07-e2e-test','agent-08-deploy'] },
+  { name: '全新项目', scope: 'new', steps: ['agent-01-requirement','agent-02-brd','agent-03-prd','agent-04-tech-design','commit-docs','agent-05-tdd','agent-06-code-review','agent-07-e2e-test','agent-08-deploy'], branch: {} },
+  { name: '新功能', scope: 'iteration', steps: ['agent-01-requirement','agent-03-prd','agent-04-tech-design','commit-docs','agent-05-tdd','agent-06-code-review','agent-07-e2e-test','agent-08-deploy'], branch: { base: 'main', prefix: 'feature', pattern: '{prefix}/{id}-{slug}', idPrefix: 'F' } },
+  { name: 'Bug 修复', scope: 'iteration', steps: ['agent-01-requirement','agent-05-tdd','agent-06-code-review','agent-07-e2e-test','agent-08-deploy'], branch: { base: 'main', prefix: 'fix', pattern: '{prefix}/{id}-{slug}', idPrefix: 'B' } },
+  { name: '热修复', scope: 'iteration', steps: ['agent-01-requirement','agent-05-tdd','agent-06-code-review','agent-07-e2e-test','agent-08-deploy'], branch: { base: 'main', prefix: 'hotfix', pattern: '{prefix}/{id}-{slug}', idPrefix: 'H' } },
+  { name: '重构', scope: 'iteration', steps: ['agent-01-requirement','agent-04-tech-design','commit-docs','agent-05-tdd','agent-06-code-review','agent-07-e2e-test','agent-08-deploy'], branch: { base: 'main', prefix: 'refactor', pattern: '{prefix}/{id}-{slug}', idPrefix: 'R' } },
 ];
 
-const insertTemplate = db.prepare('INSERT OR REPLACE INTO workflow_templates (id, name, step_sequence) VALUES ((SELECT id FROM workflow_templates WHERE name = ?), ?, ?)');
+const insertTemplate = db.prepare('INSERT OR REPLACE INTO workflow_templates (id, name, step_sequence, scope, branch_config) VALUES ((SELECT id FROM workflow_templates WHERE name = ?), ?, ?, ?, ?)');
 for (const t of TEMPLATES) {
-  insertTemplate.run(t.name, t.name, JSON.stringify(t.steps));
+  insertTemplate.run(t.name, t.name, JSON.stringify(t.steps), t.scope, JSON.stringify(t.branch));
 }
 console.log(`Seeded ${TEMPLATES.length} workflow templates`);
 
