@@ -45,7 +45,13 @@ export default function Dashboard() {
   // SSE events
   useSSE(id, {
     onState: (state) => {
-      setWorkflow(prev => prev ? { ...prev, status: state.status, current_step: state.currentStep } : prev);
+      setWorkflow(prev => {
+        if (!prev) return prev;
+        const updates = {};
+        if (state.status !== undefined) updates.status = state.status;
+        if (state.currentStep !== undefined) updates.current_step = state.currentStep;
+        return { ...prev, ...updates };
+      });
       // Update steps from state
       if (state.steps) {
         setSteps(prev => prev.map(s => {
@@ -208,6 +214,11 @@ export default function Dashboard() {
     setLogEntries([]);
     setSubagentEntries([]);
     setCurrentSubagent(null);
+    // Reload workflow to sync UI
+    const wfRes = await fetch(`/api/workflows/${id}`);
+    const wfData = await wfRes.json();
+    setWorkflow(wfData);
+    setSteps(wfData.steps || []);
   }, [id]);
 
   // View step log
