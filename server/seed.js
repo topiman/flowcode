@@ -48,7 +48,9 @@ const skillCount = db.prepare('SELECT COUNT(*) as c FROM skills').get().c;
 if (skillCount === 0) {
   console.log('Importing skills, skill_types, agent_skills, config from seed-data.sql...');
   const sql = readFileSync(join(__dirname, 'seed-data.sql'), 'utf-8');
+  db.pragma('foreign_keys = OFF');
   db.exec(sql);
+  db.pragma('foreign_keys = ON');
   const newCount = db.prepare('SELECT COUNT(*) as c FROM skills').get().c;
   console.log(`Imported ${newCount} skills`);
 } else {
