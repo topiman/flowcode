@@ -211,11 +211,15 @@ router.get('/:id/context', async (req, res) => {
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(wfId);
   if (!wf) return res.status(404).json({ error: 'not found' });
 
-  // Need an active session to query context
+  // Find a session to query context: workflow-level, current step, or most recent step with a session
   let sessionId = wf.session_id;
   if (!sessionId && wf.current_step) {
     const step = db.prepare('SELECT session_id FROM workflow_steps WHERE workflow_id = ? AND step_name = ?').get(wfId, wf.current_step);
     sessionId = step?.session_id;
+  }
+  if (!sessionId) {
+    const lastStep = db.prepare('SELECT session_id FROM workflow_steps WHERE workflow_id = ? AND session_id IS NOT NULL ORDER BY sort_order DESC LIMIT 1').get(wfId);
+    sessionId = lastStep?.session_id;
   }
 
   if (!sessionId && !isAlive(wfId)) {
