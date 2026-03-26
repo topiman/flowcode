@@ -63,6 +63,7 @@ export default function Dashboard() {
     },
     onThinking: (d) => {
       if (cancelledRef.current) return;
+      setIsRunning(true);
       const entry = { type: 'thinking', text: d.text };
       if (d.subagent) {
         setSubagentEntries(prev => [...prev, entry]);
@@ -117,6 +118,8 @@ export default function Dashboard() {
       });
     },
     onAutoContinue: (d) => {
+      cancelledRef.current = false;
+      setIsRunning(true);
       setMessages(prev => [...prev, { role: 'system', content: `自动继续: ${d.nextStep || '下一步'}` }]);
       setLogEntries([]);
       setSubagentEntries([]);
@@ -347,7 +350,7 @@ export default function Dashboard() {
             {/* Chat pane */}
             <div data-chat style={{ height: '50%' }} className="min-h-[60px] overflow-hidden flex flex-col">
               <div className="px-4 py-1.5 text-[11px] text-gray-500 border-b border-gray-800 shrink-0">对话</div>
-              <ChatPanel messages={messages} streamBubble={streamBubble} onSend={sendMessage} isRunning={isRunning} workflowStatus={workflow?.status} onNext={handleNext} onPrev={handlePrev} onCancel={cancel}
+              <ChatPanel messages={messages} streamBubble={streamBubble} onSend={sendMessage} isRunning={isRunning} workflowStatus={workflow?.status} onNext={handleNext} onPrev={handlePrev}
                 workflowId={id} onClearMessages={setMessages} onSetRunning={setIsRunning} />
             </div>
           </div>
