@@ -18,6 +18,7 @@ export default function ChatPanel({ messages, streamBubble, onSend, isRunning, w
   const [input, setInput] = useState('');
   const [images, setImages] = useState([]); // [{ data: base64, type: 'image/png', preview: dataUrl }]
   const [suggestions, setSuggestions] = useState([]);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(-1);
   const ref = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
@@ -31,9 +32,12 @@ export default function ChatPanel({ messages, streamBubble, onSend, isRunning, w
     if (input.startsWith('/') && !input.includes(' ')) {
       const q = input.toLowerCase();
       const matches = Object.keys(COMMANDS).filter(c => c.startsWith(q));
-      setSuggestions(matches.length > 0 && matches[0] !== input ? matches : []);
+      const s = matches.length > 0 && matches[0] !== input ? matches : [];
+      setSuggestions(s);
+      setSelectedSuggestion(-1);
     } else {
       setSuggestions([]);
+      setSelectedSuggestion(-1);
     }
   }, [input]);
 
@@ -109,12 +113,30 @@ export default function ChatPanel({ messages, streamBubble, onSend, isRunning, w
   }
 
   function handleKeyDown(e) {
-    // Tab to autocomplete
-    if (e.key === 'Tab' && suggestions.length > 0) {
-      e.preventDefault();
-      setInput(suggestions[0]);
-      setSuggestions([]);
-      return;
+    if (suggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedSuggestion(prev => (prev + 1) % suggestions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedSuggestion(prev => prev <= 0 ? suggestions.length - 1 : prev - 1);
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && selectedSuggestion >= 0)) {
+        e.preventDefault();
+        const idx = selectedSuggestion >= 0 ? selectedSuggestion : 0;
+        setInput(suggestions[idx]);
+        setSuggestions([]);
+        setSelectedSuggestion(-1);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setSuggestions([]);
+        setSelectedSuggestion(-1);
+        return;
+      }
     }
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
   }
@@ -219,9 +241,9 @@ export default function ChatPanel({ messages, streamBubble, onSend, isRunning, w
       {/* Command suggestions */}
       {suggestions.length > 0 && (
         <div className="mx-4 mb-1 bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
-          {suggestions.map(cmd => (
-            <button key={cmd} onClick={() => { setInput(cmd); setSuggestions([]); inputRef.current?.focus(); }}
-              className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-800 transition-colors">
+          {suggestions.map((cmd, i) => (
+            <button key={cmd} onClick={() => { setInput(cmd); setSuggestions([]); setSelectedSuggestion(-1); inputRef.current?.focus(); }}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${i === selectedSuggestion ? 'bg-gray-800' : 'hover:bg-gray-800'}`}>
               <span className="text-sm text-purple-400 font-mono">{cmd}</span>
               <span className="text-xs text-gray-500">{COMMANDS[cmd]?.description}</span>
             </button>
