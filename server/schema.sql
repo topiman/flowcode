@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS workflow_templates (
   description TEXT NOT NULL DEFAULT '',
   tech_stack TEXT NOT NULL DEFAULT '{}',
   step_sequence TEXT NOT NULL DEFAULT '[]',
-  branch_config TEXT NOT NULL DEFAULT '{}'
+  branch_config TEXT NOT NULL DEFAULT '{}',
+  scope TEXT NOT NULL DEFAULT 'all'
 );
 
 -- ═══ 运行时表 ═══
