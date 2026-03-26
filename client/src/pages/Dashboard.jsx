@@ -207,6 +207,11 @@ export default function Dashboard() {
           setSubagentEntries([]);
           setCurrentSubagent(null);
           setStreamBubble({ thinking: '', text: '', tools: [] });
+          // Reload workflow to sync pipeline UI
+          const wfRes = await fetch(`/api/workflows/${id}`);
+          const wfData = await wfRes.json();
+          setWorkflow(wfData);
+          setSteps(wfData.steps || []);
         }
       },
       onCancel: () => setConfirmDialog(null),

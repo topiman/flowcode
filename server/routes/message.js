@@ -29,6 +29,8 @@ router.post('/', async (req, res) => {
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(workflowId);
   if (!wf) return res.status(404).json({ error: 'workflow not found' });
 
+  console.log(`[message] wf=${workflowId} status=${wf.status} current_step=${wf.current_step} msg=${message.slice(0, 50)}`);
+
   // Handle images
   const paths = saveImages(images);
   let fullMessage = message;
@@ -41,16 +43,19 @@ router.post('/', async (req, res) => {
 
   try {
     if (wf.status === 'completed') {
+      console.log(`[message] workflow completed, sending direct message`);
       await sendWorkflowMessage(workflowId, fullMessage);
     } else {
       const step = db.prepare('SELECT * FROM workflow_steps WHERE workflow_id = ? AND step_name = ?')
         .get(workflowId, wf.current_step);
 
+      console.log(`[message] step=${step?.step_name} status=${step?.status} session=${step?.session_id?.slice(0, 8) || 'none'}`);
+
       if (!step || step.status === 'pending') {
-        // First execution of this step
+        console.log(`[message] first execution of step`);
         await executeStep(workflowId, fullMessage);
       } else {
-        // Step in-progress: resume session for continued chat
+        console.log(`[message] resuming step session`);
         await executeStep(workflowId, fullMessage);
       }
     }

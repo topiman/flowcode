@@ -8,16 +8,19 @@ import { buildAgentPrompt, buildHistorySummary } from './prompt-builder.js';
 
 // ─── Server-side step execution: run a specific agent step ───
 export async function executeStep(workflowId, userMessage = '开始执行') {
+  console.log(`[executeStep] wf=${workflowId} msg=${userMessage.slice(0, 50)}`);
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(workflowId);
   if (!wf) throw new Error('Workflow not found');
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(wf.project_id);
   const cwd = wf.worktree_dir || join(PROJECTS_DIR, project.name);
+  console.log(`[executeStep] project=${project.name} cwd=${cwd} current_step=${wf.current_step}`);
   const step = db.prepare('SELECT * FROM workflow_steps WHERE workflow_id = ? AND step_name = ?').get(workflowId, wf.current_step);
   if (!step) throw new Error('Step not found: ' + wf.current_step);
 
   const agent = db.prepare('SELECT * FROM agents WHERE name = ?').get(step.step_name);
   if (!agent) throw new Error('Agent not found: ' + step.step_name);
+  console.log(`[executeStep] agent=${agent.name} model=${agent.model || 'default'} session=${step.session_id?.slice(0, 8) || 'none'}`);
 
   // Update step status
   db.prepare("UPDATE workflow_steps SET status = 'in-progress', started_at = datetime('now') WHERE id = ?").run(step.id);
@@ -78,6 +81,8 @@ export async function executeStep(workflowId, userMessage = '开始执行') {
       model: agent.model || undefined,
     });
   }
+
+  console.log(`[executeStep] done: code=${result.code} session=${result.sessionId?.slice(0, 8) || 'none'} output=${result.output?.length || 0} chars`);
 
   // Save step session_id
   if (result.sessionId) {

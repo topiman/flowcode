@@ -55,13 +55,16 @@ router.post('/:id/next', async (req, res) => {
   const wfId = parseInt(req.params.id);
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(wfId);
   if (!wf) return res.status(404).json({ error: 'not found' });
-  if (isRunning(wfId)) return res.status(409).json({ error: '正在执行中' });
+
+  console.log(`[next] wf=${wfId} current_step=${wf.current_step} status=${wf.status}`);
 
   // Check current step status
   const currentStep = db.prepare('SELECT status FROM workflow_steps WHERE workflow_id = ? AND step_name = ?').get(wfId, wf.current_step);
+  console.log(`[next] step status=${currentStep?.status || 'not found'}`);
 
   // If pending, execute it first
   if (!currentStep || currentStep.status === 'pending') {
+    console.log(`[next] step is pending, executing ${wf.current_step}`);
     res.json({ ok: true, executing: wf.current_step });
     executeStep(wfId, '开始执行').catch(err => {
       console.error(`[next] auto-execute failed:`, err.message);
@@ -69,23 +72,27 @@ router.post('/:id/next', async (req, res) => {
     return;
   }
 
-  // in-progress or completed are both OK to advance (isRunning check above ensures agent isn't actively running)
+  // in-progress or completed are both OK to advance
 
   // Mark current step completed
   db.prepare("UPDATE workflow_steps SET status = 'completed', completed_at = datetime('now') WHERE workflow_id = ? AND step_name = ?")
     .run(wfId, wf.current_step);
   broadcast(wfId, 'state', { steps: { [wf.current_step]: { status: 'completed' } } });
+  console.log(`[next] marked ${wf.current_step} as completed`);
 
   // Advance to next step
   const nextStep = advanceStep(wfId);
   if (!nextStep) {
+    console.log(`[next] no more steps, workflow completed`);
     return res.json({ ok: true, completed: true });
   }
 
+  console.log(`[next] advancing to ${nextStep}, starting execution`);
   res.json({ ok: true, nextStep });
 
   // Execute next step
   executeStep(wfId, '开始执行').catch(err => {
+    console.error(`[next] executeStep failed for ${nextStep}:`, err.message);
     broadcast(wfId, 'error', { message: err.message });
   });
 });
@@ -114,6 +121,7 @@ router.post('/:id/prev', (req, res) => {
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(wfId);
   if (!wf) return res.status(404).json({ error: 'not found' });
   if (isRunning(wfId)) return res.status(409).json({ error: '正在执行中' });
+  console.log(`[prev] wf=${wfId} current_step=${wf.current_step}`);
 
   const template = db.prepare('SELECT step_sequence FROM workflow_templates WHERE id = ?').get(wf.template_id);
   const steps = JSON.parse(template.step_sequence);
@@ -149,6 +157,7 @@ router.post('/:id/prev', (req, res) => {
     },
   });
 
+  console.log(`[prev] rolled back to ${prevStep}`);
   res.json({ ok: true, prevStep });
 });
 

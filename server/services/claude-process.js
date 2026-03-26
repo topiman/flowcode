@@ -120,6 +120,7 @@ class PersistentProcess {
 
     // Store init info
     if (evt.type === 'system' && evt.subtype === 'init') {
+      console.log(`[claude] [${this.key}] init: model=${evt.model} session=${evt.session_id?.slice(0, 8)} version=${evt.claude_code_version}`);
       this.initInfo = {
         model: evt.model || '',
         sessionId: evt.session_id || '',
@@ -129,10 +130,23 @@ class PersistentProcess {
       };
     }
 
+    // Log key event types
+    if (evt.type === 'assistant' && evt.message?.content) {
+      for (const block of evt.message.content) {
+        if (block.type === 'tool_use') {
+          console.log(`[claude] [${this.key}] tool_use: ${block.name} ${typeof block.input === 'string' ? block.input.slice(0, 80) : JSON.stringify(block.input).slice(0, 80)}`);
+        }
+      }
+    }
+    if (evt.type === 'tool_use') {
+      console.log(`[claude] [${this.key}] tool_use: ${evt.name || evt.tool}`);
+    }
+
     // Process event for SSE broadcast / logging
     processEvent(this.broadcastKey, evt);
 
     if (evt.type === 'result') {
+      console.log(`[claude] [${this.key}] result: cost=$${(evt.total_cost_usd || 0).toFixed(4)} duration=${evt.duration_ms || 0}ms turns=${evt.num_turns || 0} output=${(evt.result || '').length} chars`);
       // Accumulate stats
       this.stats.costUsd += evt.total_cost_usd || 0;
       this.stats.durationMs += evt.duration_ms || 0;
@@ -159,6 +173,7 @@ class PersistentProcess {
 
       // Dequeue next message if any
       if (this.queue.length > 0) {
+        console.log(`[claude] [${this.key}] dequeue: ${this.queue.length} remaining`);
         const { message, resolve, reject } = this.queue.shift();
         this._doSend(message, resolve, reject);
       }
@@ -171,10 +186,11 @@ class PersistentProcess {
   send(message) {
     return new Promise((resolve, reject) => {
       if (this.state === 'dead') {
+        console.log(`[claude] [${this.key}] send rejected: process is dead`);
         return reject(new Error('Process is dead'));
       }
       if (this.state === 'busy') {
-        // Queue the message
+        console.log(`[claude] [${this.key}] send queued (queue=${this.queue.length + 1}): ${message.slice(0, 60)}`);
         this.queue.push({ message, resolve, reject });
         return;
       }
@@ -188,6 +204,7 @@ class PersistentProcess {
     this.pendingResolve = resolve;
     this.pendingReject = reject;
 
+    console.log(`[claude] [${this.key}] sending: ${message.slice(0, 80)}...`);
     const payload = JSON.stringify({ type: 'user', message: { role: 'user', content: message } });
     this.proc.stdin.write(payload + '\n');
   }
@@ -222,6 +239,7 @@ export function getOrCreateProcess(key, options = {}) {
       existing.proc.kill('SIGTERM');
       pool.delete(key);
     } else {
+      console.log(`[pool] reuse [${key}] state=${existing.state} session=${existing.sessionId?.slice(0, 8) || 'none'} model=${existing.model || 'default'}`);
       return existing;
     }
   }
@@ -524,6 +542,7 @@ function processEvent(workflowId, evt) {
     broadcast(workflowId, 'model-info', { model: evt.message.model });
   }
   if (evt.type === 'rate_limit_event' && evt.rate_limit_info) {
+    console.log(`[claude] [${workflowId}] rate-limit: ${JSON.stringify(evt.rate_limit_info)}`);
     broadcast(workflowId, 'rate-limit', evt.rate_limit_info);
   }
   if (evt.type === 'result') {
