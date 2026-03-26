@@ -37,13 +37,18 @@ export default function ProjectList() {
 
   async function startIteration(project) {
     if (!selectedTemplate || !iterDesc) return;
-    const res = await fetch('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: project.name, description: iterDesc, templateName: selectedTemplate, projectId: project.id }),
-    });
-    const data = await res.json();
-    if (data.workflowId) navigate(`/workflow/${data.workflowId}`);
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: project.name, description: iterDesc, templateName: selectedTemplate, projectId: project.id }),
+      });
+      const data = await res.json();
+      if (data.error) { alert(data.error); return; }
+      if (data.workflowId) navigate(`/workflow/${data.workflowId}`);
+    } catch (err) {
+      alert('创建失败: ' + err.message);
+    }
   }
 
   async function deleteWorkflow(e, wfId, projectId) {
