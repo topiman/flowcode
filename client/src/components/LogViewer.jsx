@@ -95,6 +95,7 @@ function parseHistoricalLog(log) {
 
     const toolMatch = line.match(/^\[tool\]\s*(\w+)(?::?\s*(.*))?$/);
     const thinkingMatch = line.match(/^\[thinking\]\s*(.*)/);
+    const textMatch = line.match(/^\[text\]\s*(.*)/);
     const resultMatch = line.match(/^\[result\]\s*(.*)/);
     const subagentStartMatch = line.match(/^\[subagent-start\]\s*(.*)/);
     const subagentEndMatch = line.match(/^\[subagent-end\]/);
@@ -105,9 +106,11 @@ function parseHistoricalLog(log) {
       entries.push({ type: 'subagent-end' });
     } else if (toolMatch) {
       entries.push({ type: 'tool', tool: toolMatch[1], input: toolMatch[2] || '', source });
+    } else if (textMatch) {
+      entries.push({ type: 'text', text: textMatch[1] });
     } else if (thinkingMatch) {
       let text = thinkingMatch[1];
-      while (i + 1 < lines.length && !lines[i + 1].match(/^\[(main|sub)\]?\s*\[(tool|thinking|result|subagent)/)) {
+      while (i + 1 < lines.length && !lines[i + 1].match(/^\[(main|sub)\]?\s*\[(tool|thinking|text|result|subagent)/)) {
         i++;
         let nextLine = lines[i];
         const nextSource = nextLine.match(/^\[(main|sub)\]\s*/);
