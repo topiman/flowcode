@@ -31,6 +31,7 @@ class PersistentProcess {
     this.queue = [];
     this.gotOutput = false;
     this.spawnTimeout = null;
+    this.muted = false;
 
     // Cumulative session stats
     this.stats = { costUsd: 0, durationMs: 0, durationApiMs: 0, turns: 0, usage: {}, modelUsage: {} };
@@ -114,6 +115,23 @@ class PersistentProcess {
   }
 
   _handleEvent(evt) {
+    // Muted: skip all broadcast/logging, only resolve pending promise on result
+    if (this.muted) {
+      if (evt.type === 'result') {
+        console.log(`[claude] [${this.key}] muted result: resolving promise`);
+        this.resultText = evt.result || '';
+        if (evt.session_id) this.sessionId = evt.session_id;
+        if (this.pendingResolve) {
+          const resolve = this.pendingResolve;
+          this.pendingResolve = null;
+          this.pendingReject = null;
+          resolve({ code: 0, output: '', sessionId: this.sessionId });
+        }
+        this.state = 'idle';
+      }
+      return;
+    }
+
     // Extract session_id from system init or result
     if (evt.type === 'system' && evt.session_id) {
       this.sessionId = evt.session_id;
@@ -322,7 +340,7 @@ export function getSessionId(key) {
 export function cancelRun(key) {
   const pp = pool.get(key);
   if (pp) {
-    // Use SIGKILL for immediate termination (user explicitly cancelled)
+    pp.muted = true; // Stop broadcasting before killing
     if (pp.state !== 'dead') pp.proc.kill('SIGKILL');
     pool.delete(key);
   }
