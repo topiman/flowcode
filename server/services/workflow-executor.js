@@ -87,9 +87,7 @@ export async function executeStep(workflowId, userMessage = '开始执行') {
     broadcast(workflowId, 'chat-message', { role: 'assistant', content: result.output });
   }
 
-  // Mark step as done (agent finished, awaiting user to advance)
-  db.prepare("UPDATE workflow_steps SET status = 'done' WHERE id = ?").run(step.id);
-  broadcast(workflowId, 'state', { steps: { [step.step_name]: { status: 'done' } } });
+  // Notify step done (status stays in-progress until user clicks next)
   broadcast(workflowId, 'step-done', { step: step.step_name });
 
   return result;

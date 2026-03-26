@@ -68,13 +68,7 @@ router.post('/:id/next', async (req, res) => {
     return;
   }
 
-  // Only allow advancing if step is done (agent finished) or already completed
-  if (currentStep.status === 'in-progress') {
-    return res.status(409).json({ error: '当前步骤正在执行中，请等待完成' });
-  }
-  if (currentStep.status !== 'done' && currentStep.status !== 'completed') {
-    return res.status(409).json({ error: `当前步骤状态为 ${currentStep.status}，无法推进` });
-  }
+  // in-progress or completed are both OK to advance (isRunning check above ensures agent isn't actively running)
 
   // Mark current step completed
   db.prepare("UPDATE workflow_steps SET status = 'completed', completed_at = datetime('now') WHERE workflow_id = ? AND step_name = ?")
