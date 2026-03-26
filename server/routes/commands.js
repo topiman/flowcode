@@ -29,6 +29,11 @@ router.post('/', async (req, res) => {
   const key = workflowId || (conversationId ? `conv:${conversationId}` : null);
   if (!key) return res.json({ ok: false, message: '缺少 workflowId 或 conversationId' });
 
+  // Don't queue CLI commands behind a busy process — return immediately
+  if (isRunning(key)) {
+    return res.json({ ok: false, message: '进程执行中，请稍后再试。' });
+  }
+
   const { sessionId, cwd } = resolveSession({ workflowId, conversationId });
 
   if (!isAlive(key) && !sessionId) {

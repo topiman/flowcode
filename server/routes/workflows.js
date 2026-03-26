@@ -228,6 +228,10 @@ router.get('/:id/session-stats', (req, res) => {
 // Context info (runs /context via persistent process)
 router.get('/:id/context', async (req, res) => {
   const wfId = parseInt(req.params.id);
+  // Don't queue /context behind a busy process — return empty immediately
+  if (isRunning(wfId)) {
+    return res.json({ model: '', used: 0, total: 0, pct: 0, categories: [] });
+  }
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(wfId);
   if (!wf) return res.status(404).json({ error: 'not found' });
 

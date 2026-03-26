@@ -3,7 +3,7 @@ import db from '../db.js';
 import { broadcast } from './sse.js';
 
 // ─── Configuration ───
-const MAX_POOL_SIZE = 5;
+const MAX_POOL_SIZE = 10;
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const SPAWN_TIMEOUT_MS = 60000; // 60s for first output
 
