@@ -27,7 +27,7 @@ function ToolEntry({ tool, input, source }) {
   const [expanded, setExpanded] = useState(false);
   const style = TOOL_STYLE[tool] || DEFAULT_STYLE;
   const shortInput = shortenPath(input);
-  const isLong = shortInput.length > 80;
+  const isLong = shortInput.length > 200;
 
   return (
     <div
@@ -38,7 +38,7 @@ function ToolEntry({ tool, input, source }) {
       <span className="shrink-0 text-xs mt-px">{style.icon}</span>
       <span className={`text-[11px] font-semibold shrink-0 ${style.color}`}>{tool}</span>
       <span className="text-[11px] text-gray-400 min-w-0 break-all">
-        {expanded ? shortInput : (isLong ? shortInput.slice(0, 80) + '…' : shortInput)}
+        {expanded ? shortInput : (isLong ? shortInput.slice(0, 200) + '…' : shortInput)}
       </span>
       {isLong && (
         <span className="text-[10px] text-gray-600 shrink-0 ml-auto">{expanded ? '▼' : '▶'}</span>

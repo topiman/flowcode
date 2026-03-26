@@ -596,6 +596,6 @@ function processEvent(workflowId, evt) {
 
 function summarize(input) {
   if (!input) return '';
-  if (typeof input === 'string') return input.slice(0, 120);
-  return (input.file_path || input.command || input.pattern || input.query || JSON.stringify(input)).slice(0, 120);
+  if (typeof input === 'string') return input;
+  return input.file_path || input.command || input.pattern || input.query || JSON.stringify(input);
 }
