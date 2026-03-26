@@ -14,7 +14,7 @@ function renderContent(content) {
   });
 }
 
-export default function ChatPanel({ messages, streamBubble, onSend, isRunning, workflowStatus, onNext, workflowId, onClearMessages, onSetRunning }) {
+export default function ChatPanel({ messages, streamBubble, onSend, isRunning, workflowStatus, onNext, onPrev, workflowId, onClearMessages, onSetRunning }) {
   const [input, setInput] = useState('');
   const [images, setImages] = useState([]); // [{ data: base64, type: 'image/png', preview: dataUrl }]
   const [suggestions, setSuggestions] = useState([]);
@@ -189,9 +189,14 @@ export default function ChatPanel({ messages, streamBubble, onSend, isRunning, w
       {/* Quick actions */}
       <div className="flex gap-1.5 px-4 pb-2">
         {!isRunning && workflowStatus !== 'completed' && (
-          <button onClick={onNext} className="px-4 py-1.5 text-xs bg-green-600 text-white rounded-full hover:bg-green-700 font-semibold">
-            下一步 →
-          </button>
+          <>
+            <button onClick={onPrev} className="px-4 py-1.5 text-xs bg-gray-700 text-gray-300 rounded-full hover:bg-gray-600 font-semibold">
+              ← 回退
+            </button>
+            <button onClick={onNext} className="px-4 py-1.5 text-xs bg-green-600 text-white rounded-full hover:bg-green-700 font-semibold">
+              下一步 →
+            </button>
+          </>
         )}
       </div>
 

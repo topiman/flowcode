@@ -153,27 +153,60 @@ export default function Dashboard() {
     });
   }, [id, viewingStep]);
 
-  // Next step
-  const handleNext = useCallback(async () => {
-    const res = await fetch(`/api/workflows/${id}/next`, { method: 'POST' });
-    const data = await res.json();
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
+  // Next step (with confirmation)
+  const handleNext = useCallback(async () => {
+    // Check outputs first
+    const checkRes = await fetch(`/api/workflows/${id}/check-outputs`);
+    const checkData = await checkRes.json();
+
+    const hasOutputs = checkData.outputs && checkData.outputs.length > 0;
+    const allExist = hasOutputs && checkData.outputs.every(o => o.exists);
+    const hasMissing = hasOutputs && checkData.outputs.some(o => !o.exists);
+
+    // Show confirmation dialog
+    setConfirmDialog({
+      step: checkData.label || checkData.step,
+      outputs: checkData.outputs || [],
+      hasMissing,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        const res = await fetch(`/api/workflows/${id}/next`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) {
+          setMessages(prev => [...prev, { role: 'system', content: data.error || '操作失败' }]);
+          return;
+        }
+        if (data.completed) {
+          setWorkflow(prev => prev ? { ...prev, status: 'completed' } : prev);
+          setMessages(prev => [...prev, { role: 'system', content: '工作流已全部完成' }]);
+        } else {
+          setIsRunning(true);
+          setLogEntries([]);
+          setSubagentEntries([]);
+          setCurrentSubagent(null);
+          setStreamBubble({ thinking: '', text: '', tools: [] });
+        }
+      },
+      onCancel: () => setConfirmDialog(null),
+    });
+  }, [id]);
+
+  // Go back to previous step
+  const handlePrev = useCallback(async () => {
+    const res = await fetch(`/api/workflows/${id}/prev`, { method: 'POST' });
+    const data = await res.json();
     if (!res.ok) {
-      setMessages(prev => [...prev, { role: 'system', content: data.error || '操作失败' }]);
+      setMessages(prev => [...prev, { role: 'system', content: data.error || '无法回退' }]);
       return;
     }
-
-    if (data.completed) {
-      setWorkflow(prev => prev ? { ...prev, status: 'completed' } : prev);
-      setMessages(prev => [...prev, { role: 'system', content: '工作流已全部完成' }]);
-    } else {
-      // Next step is executing
-      setIsRunning(true);
-      setLogEntries([]);
-      setSubagentEntries([]);
-      setCurrentSubagent(null);
-      setStreamBubble({ thinking: '', text: '', tools: [] });
-    }
+    setMessages(prev => [...prev, { role: 'system', content: `已回退到: ${data.prevStep}` }]);
+    setIsRunning(false);
+    setLogEntries([]);
+    setSubagentEntries([]);
+    setCurrentSubagent(null);
   }, [id]);
 
   // View step log
@@ -295,7 +328,7 @@ export default function Dashboard() {
             {/* Chat pane */}
             <div data-chat style={{ height: '50%' }} className="min-h-[60px] overflow-hidden flex flex-col">
               <div className="px-4 py-1.5 text-[11px] text-gray-500 border-b border-gray-800 shrink-0">对话</div>
-              <ChatPanel messages={messages} streamBubble={streamBubble} onSend={sendMessage} isRunning={isRunning} workflowStatus={workflow?.status} onNext={handleNext}
+              <ChatPanel messages={messages} streamBubble={streamBubble} onSend={sendMessage} isRunning={isRunning} workflowStatus={workflow?.status} onNext={handleNext} onPrev={handlePrev}
                 workflowId={id} onClearMessages={setMessages} onSetRunning={setIsRunning} />
             </div>
           </div>
@@ -303,6 +336,42 @@ export default function Dashboard() {
           <StatusBar workflow={workflow} isRunning={isRunning} onCancel={cancel} sessionStats={sessionStats} sessionInit={sessionInit} />
         </div>
       </div>
+
+      {/* Confirm next step dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={confirmDialog.onCancel}>
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-3">确认推进到下一步</h3>
+            <p className="text-sm text-gray-400 mb-4">当前步骤: <span className="text-white">{confirmDialog.step}</span></p>
+
+            {confirmDialog.outputs.length > 0 ? (
+              <div className="mb-4">
+                <p className="text-xs text-gray-500 mb-2">输出文件状态:</p>
+                <div className="space-y-1.5">
+                  {confirmDialog.outputs.map((o, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm">
+                      <span className={o.exists ? 'text-green-400' : 'text-red-400'}>{o.exists ? '\u2713' : '\u2717'}</span>
+                      <span className={o.exists ? 'text-gray-300' : 'text-red-300'}>{o.file}</span>
+                    </div>
+                  ))}
+                </div>
+                {confirmDialog.hasMissing && (
+                  <p className="mt-2 text-xs text-amber-400">部分输出文件尚未生成，确定要推进吗？</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 mb-4">该步骤没有声明输出文件</p>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button onClick={confirmDialog.onCancel} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition">取消</button>
+              <button onClick={confirmDialog.onConfirm} className={`px-4 py-2 text-sm font-semibold rounded-lg transition ${confirmDialog.hasMissing ? 'bg-amber-600 hover:bg-amber-700' : 'bg-green-600 hover:bg-green-700'} text-white`}>
+                确认推进
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

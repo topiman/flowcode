@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { join } from 'path';
+import { existsSync } from 'fs';
 import { PROJECTS_DIR } from '../config.js';
 import db from '../db.js';
 import { cancelRun, killProcess, executeStep, advanceStep, isRunning, runAutoMode, sendCommand, isAlive, getProcessInfo } from '../services/claude.js';
@@ -87,6 +88,68 @@ router.post('/:id/next', async (req, res) => {
   executeStep(wfId, '开始执行').catch(err => {
     broadcast(wfId, 'error', { message: err.message });
   });
+});
+
+// Check output files for current step (used by confirm dialog)
+router.get('/:id/check-outputs', (req, res) => {
+  const wfId = parseInt(req.params.id);
+  const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(wfId);
+  if (!wf) return res.status(404).json({ error: 'not found' });
+
+  const agent = db.prepare('SELECT label, outputs FROM agents WHERE name = ?').get(wf.current_step);
+  const project = db.prepare('SELECT name FROM projects WHERE id = ?').get(wf.project_id);
+  const cwd = wf.worktree_dir || join(PROJECTS_DIR, project.name);
+  const outputs = JSON.parse(agent?.outputs || '[]');
+
+  res.json({
+    step: wf.current_step,
+    label: agent?.label || wf.current_step,
+    outputs: outputs.map(f => ({ file: f, exists: existsSync(join(cwd, f)) })),
+  });
+});
+
+// Go back to previous step
+router.post('/:id/prev', (req, res) => {
+  const wfId = parseInt(req.params.id);
+  const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(wfId);
+  if (!wf) return res.status(404).json({ error: 'not found' });
+  if (isRunning(wfId)) return res.status(409).json({ error: '正在执行中' });
+
+  const template = db.prepare('SELECT step_sequence FROM workflow_templates WHERE id = ?').get(wf.template_id);
+  const steps = JSON.parse(template.step_sequence);
+  const flatSteps = steps.flatMap(s => Array.isArray(s) ? s : [s]);
+  const currentIdx = flatSteps.indexOf(wf.current_step);
+
+  if (currentIdx <= 0) {
+    return res.status(400).json({ error: '已经是第一步，无法回退' });
+  }
+
+  const prevStep = flatSteps[currentIdx - 1];
+
+  // Reset current step to pending
+  db.prepare("UPDATE workflow_steps SET status = 'pending', session_id = NULL WHERE workflow_id = ? AND step_name = ?")
+    .run(wfId, wf.current_step);
+
+  // Reset previous step to pending
+  db.prepare("UPDATE workflow_steps SET status = 'pending', session_id = NULL, completed_at = NULL WHERE workflow_id = ? AND step_name = ?")
+    .run(wfId, prevStep);
+
+  // Move current_step back
+  db.prepare("UPDATE workflows SET current_step = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(prevStep, wfId);
+
+  // Kill process to clean up
+  killProcess(wfId);
+
+  broadcast(wfId, 'state', {
+    currentStep: prevStep,
+    steps: {
+      [wf.current_step]: { status: 'pending' },
+      [prevStep]: { status: 'pending' },
+    },
+  });
+
+  res.json({ ok: true, prevStep });
 });
 
 // Toggle auto-mode
