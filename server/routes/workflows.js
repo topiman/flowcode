@@ -130,22 +130,19 @@ router.post('/:id/prev', (req, res) => {
   db.prepare("UPDATE workflow_steps SET status = 'pending', session_id = NULL WHERE workflow_id = ? AND step_name = ?")
     .run(wfId, wf.current_step);
 
-  // Reset previous step to pending
-  db.prepare("UPDATE workflow_steps SET status = 'pending', session_id = NULL, completed_at = NULL WHERE workflow_id = ? AND step_name = ?")
+  // Restore previous step to in-progress (keep session_id for continued conversation)
+  db.prepare("UPDATE workflow_steps SET status = 'in-progress', completed_at = NULL WHERE workflow_id = ? AND step_name = ?")
     .run(wfId, prevStep);
 
   // Move current_step back
   db.prepare("UPDATE workflows SET current_step = ?, updated_at = datetime('now') WHERE id = ?")
     .run(prevStep, wfId);
 
-  // Kill process to clean up
-  killProcess(wfId);
-
   broadcast(wfId, 'state', {
     currentStep: prevStep,
     steps: {
       [wf.current_step]: { status: 'pending' },
-      [prevStep]: { status: 'pending' },
+      [prevStep]: { status: 'in-progress' },
     },
   });
 
