@@ -347,7 +347,7 @@ export default function Dashboard() {
             {/* Chat pane */}
             <div data-chat style={{ height: '50%' }} className="min-h-[60px] overflow-hidden flex flex-col">
               <div className="px-4 py-1.5 text-[11px] text-gray-500 border-b border-gray-800 shrink-0">对话</div>
-              <ChatPanel messages={messages} streamBubble={streamBubble} onSend={sendMessage} isRunning={isRunning} workflowStatus={workflow?.status} onNext={handleNext} onPrev={handlePrev}
+              <ChatPanel messages={messages} streamBubble={streamBubble} onSend={sendMessage} isRunning={isRunning} workflowStatus={workflow?.status} onNext={handleNext} onPrev={handlePrev} onCancel={cancel}
                 workflowId={id} onClearMessages={setMessages} onSetRunning={setIsRunning} />
             </div>
           </div>

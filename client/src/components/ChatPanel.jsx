@@ -14,7 +14,7 @@ function renderContent(content) {
   });
 }
 
-export default function ChatPanel({ messages, streamBubble, onSend, isRunning, workflowStatus, onNext, onPrev, workflowId, onClearMessages, onSetRunning }) {
+export default function ChatPanel({ messages, streamBubble, onSend, isRunning, workflowStatus, onNext, onPrev, onCancel, workflowId, onClearMessages, onSetRunning }) {
   const [input, setInput] = useState('');
   const [images, setImages] = useState([]); // [{ data: base64, type: 'image/png', preview: dataUrl }]
   const [suggestions, setSuggestions] = useState([]);
@@ -222,6 +222,11 @@ export default function ChatPanel({ messages, streamBubble, onSend, isRunning, w
               下一步 →
             </button>
           </>
+        )}
+        {isRunning && onCancel && (
+          <button onClick={onCancel} className="px-4 py-1.5 text-xs bg-red-600 text-white rounded-full hover:bg-red-700 font-semibold">
+            取消当前命令
+          </button>
         )}
       </div>
 
