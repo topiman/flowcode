@@ -28,12 +28,9 @@ if (agentCount.c === 0) {
   await import('./seed.js');
 }
 
-// Startup recovery: clean up stale in-progress steps from previous crash
-const staleSteps = db.prepare("SELECT id, step_name, workflow_id FROM workflow_steps WHERE status = 'in-progress'").all();
-if (staleSteps.length > 0) {
-  console.log(`Startup recovery: resetting ${staleSteps.length} stale in-progress steps to pending`);
-  db.prepare("UPDATE workflow_steps SET status = 'pending', session_id = NULL WHERE status = 'in-progress'").run();
-}
+// Startup recovery: in-progress steps keep their status and session_id
+// so they can be resumed via --resume on next user interaction.
+// No reset needed — executeStep handles session resumption automatically.
 
 // API routes
 app.use('/api/projects', projectsRouter);
