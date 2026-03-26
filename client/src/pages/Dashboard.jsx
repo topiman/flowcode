@@ -194,8 +194,9 @@ export default function Dashboard() {
     });
   }, [id]);
 
-  // Go back to previous step
+  // Go back to previous step (with confirmation)
   const handlePrev = useCallback(async () => {
+    if (!confirm('确认回退到上一步？当前步骤将被重置。')) return;
     const res = await fetch(`/api/workflows/${id}/prev`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
