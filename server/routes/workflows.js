@@ -205,7 +205,7 @@ router.get('/:id/steps/:stepName/log', (req, res) => {
   const step = db.prepare('SELECT * FROM workflow_steps WHERE workflow_id = ? AND step_name = ?').get(req.params.id, req.params.stepName);
   if (!step) return res.json({ log: '' });
   const logs = db.prepare('SELECT content FROM step_logs WHERE workflow_step_id = ? ORDER BY created_at').all(step.id);
-  res.json({ log: logs.map(l => l.content).join('\n') });
+  res.json({ log: logs.map(l => l.content).join('') });
 });
 
 // SSE events

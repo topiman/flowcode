@@ -109,15 +109,7 @@ function parseHistoricalLog(log) {
     } else if (textMatch) {
       entries.push({ type: 'text', text: textMatch[1] });
     } else if (thinkingMatch) {
-      let text = thinkingMatch[1];
-      while (i + 1 < lines.length && !lines[i + 1].match(/^\[(main|sub)\]?\s*\[(tool|thinking|text|result|subagent)/)) {
-        i++;
-        let nextLine = lines[i];
-        const nextSource = nextLine.match(/^\[(main|sub)\]\s*/);
-        if (nextSource) nextLine = nextLine.slice(nextSource[0].length);
-        text += '\n' + nextLine;
-      }
-      entries.push({ type: 'thinking', text, source });
+      entries.push({ type: 'thinking', text: thinkingMatch[1], source });
     } else if (resultMatch) {
       entries.push({ type: 'result', text: resultMatch[1] });
     } else if (line.trim()) {
