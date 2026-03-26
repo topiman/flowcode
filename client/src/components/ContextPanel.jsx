@@ -17,7 +17,12 @@ export default function ContextPanel({ workflowId }) {
     setLoading(false);
   }
 
-  useEffect(() => { if (workflowId) load(); }, [workflowId]);
+  useEffect(() => {
+    if (!workflowId) return;
+    load();
+    const timer = setInterval(load, 15000); // refresh every 15s
+    return () => clearInterval(timer);
+  }, [workflowId]);
 
   if (!data) return null;
   if (!data.total && !data.model) return (
