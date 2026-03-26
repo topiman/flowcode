@@ -194,7 +194,7 @@ export default function ChatPanel({ messages, streamBubble, onSend, isRunning, w
               ← 回退
             </button>
             <button onClick={() => onSend('开始')} className="px-4 py-1.5 text-xs bg-purple-600 text-white rounded-full hover:bg-purple-700 font-semibold">
-              开始
+              开始当前步骤
             </button>
             <button onClick={onNext} className="px-4 py-1.5 text-xs bg-green-600 text-white rounded-full hover:bg-green-700 font-semibold">
               下一步 →
