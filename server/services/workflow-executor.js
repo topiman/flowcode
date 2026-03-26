@@ -45,6 +45,7 @@ export async function executeStep(workflowId, userMessage = '开始执行') {
         sessionId: step.session_id,
         broadcastKey: workflowId,
         allowedTools,
+        model: agent.model || undefined,
       });
     } catch (err) {
       console.log(`[executeStep] persistent process failed: ${err.message}`);

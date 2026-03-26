@@ -211,7 +211,14 @@ export function getOrCreateProcess(key, options = {}) {
 
   const existing = pool.get(key);
   if (existing && existing.state !== 'dead') {
-    return existing;
+    // If model changed, kill old process and create new one
+    if (model && existing.model !== model) {
+      console.log(`[pool] model changed for [${key}]: ${existing.model} → ${model}, killing`);
+      existing.proc.kill('SIGTERM');
+      pool.delete(key);
+    } else {
+      return existing;
+    }
   }
 
   // Evict idle processes if at capacity
@@ -228,9 +235,10 @@ export function getOrCreateProcess(key, options = {}) {
   if (allowedTools) args.push('--allowedTools', allowedTools.length > 0 ? allowedTools.join(',') : '""');
   else if (disallowedTools) args.push('--disallowedTools', disallowedTools.join(' '));
 
-  console.log(`[pool] spawn [${key}] cwd=${cwd || '/tmp'} resume=${sessionId?.slice(0, 8) || 'none'}`);
+  console.log(`[pool] spawn [${key}] cwd=${cwd || '/tmp'} model=${model || 'default'} resume=${sessionId?.slice(0, 8) || 'none'}`);
   const proc = spawn('claude', args, { cwd: cwd || '/tmp', env: { ...process.env } });
   const pp = new PersistentProcess(key, bKey, proc, { sessionId });
+  pp.model = model || null;
   pool.set(key, pp);
   return pp;
 }
