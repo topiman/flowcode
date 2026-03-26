@@ -120,7 +120,6 @@ router.post('/:id/prev', (req, res) => {
   const wfId = parseInt(req.params.id);
   const wf = db.prepare('SELECT * FROM workflows WHERE id = ?').get(wfId);
   if (!wf) return res.status(404).json({ error: 'not found' });
-  if (isRunning(wfId)) return res.status(409).json({ error: '正在执行中' });
   console.log(`[prev] wf=${wfId} current_step=${wf.current_step}`);
 
   const template = db.prepare('SELECT step_sequence FROM workflow_templates WHERE id = ?').get(wf.template_id);
