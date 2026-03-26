@@ -523,7 +523,7 @@ function processEvent(workflowId, evt) {
       if (block.type === 'thinking' && block.thinking) {
         appendLog(workflowId, `[thinking] ${block.thinking}\n`);
       } else if (block.type === 'text' && block.text) {
-        appendLog(workflowId, `[text] ${block.text}`);
+        appendLog(workflowId, `[text] ${block.text}\n`);
       } else if (block.type === 'tool_use') {
         if (block.name === 'Agent') {
           const info = extractAgentInfo(block.input);
